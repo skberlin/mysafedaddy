@@ -122,19 +122,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 12),
 
-                // Notfallkontakte (Platzhalter)
+                // Notfallkontakte – jetzt mit Navigation
                 _HomeActionButton(
                   icon: Icons.contact_phone,
                   title: "Notfallkontakte",
                   subtitle: "Vertrauenspersonen hinterlegen",
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Notfallkontakte werden als nächstes Feature eingebaut.",
-                        ),
-                      ),
-                    );
+                    Navigator.pushNamed(context, '/emergency-contacts');
                   },
                 ),
 

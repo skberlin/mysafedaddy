@@ -7,6 +7,7 @@ import '../../features/authentication/presentation/screens/phone_auth_screen.dar
 import '../../features/authentication/presentation/screens/verify_code_screen.dart';
 import '../../features/authentication/presentation/screens/profile_setup_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/emergency_contacts/presentation/screens/emergency_contacts_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -53,6 +54,9 @@ class AppRouter {
 
       case '/home':
         return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case '/emergency-contacts':
+        return MaterialPageRoute(builder: (_) => const EmergencyContactsScreen());
 
       default:
         return MaterialPageRoute(
