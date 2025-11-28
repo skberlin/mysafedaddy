@@ -6,6 +6,7 @@ import '../../features/authentication/presentation/screens/role_selection_screen
 import '../../features/authentication/presentation/screens/phone_auth_screen.dart';
 import '../../features/authentication/presentation/screens/verify_code_screen.dart';
 import '../../features/authentication/presentation/screens/profile_setup_screen.dart';
+import '../../features/home/presentation/screens/home_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -49,6 +50,9 @@ class AppRouter {
             role: role,
           ),
         );
+
+      case '/home':
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
 
       default:
         return MaterialPageRoute(

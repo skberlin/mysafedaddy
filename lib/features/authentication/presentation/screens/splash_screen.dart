@@ -20,9 +20,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
 
+    if (!mounted) return;
+
     if (user != null) {
-      // Nutzer ist eingeloggt – später z.B. HomeScreen
-      Navigator.pushReplacementNamed(context, '/role-selection');
+      // Nutzer ist eingeloggt → direkt zum HomeScreen
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
       Navigator.pushReplacementNamed(context, '/onboarding');
     }

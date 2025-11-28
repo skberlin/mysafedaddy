@@ -54,20 +54,32 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profil gespeichert.")),
       );
 
-      // TODO: Hier später auf echten HomeScreen routen.
+      // Nach dem Speichern direkt zum HomeScreen
       Navigator.pushNamedAndRemoveUntil(
         context,
-        '/splash',
+        '/home',
         (route) => false,
       );
     } catch (e) {
+      // WICHTIG: Fehler sichtbar machen und Button wieder aktivieren
+      debugPrint('Fehler beim Speichern des Profils: $e');
+
+      if (!mounted) return;
       setState(() => loading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Fehler beim Speichern des Profils.")),
+        SnackBar(
+          content: Text(
+            "Fehler beim Speichern des Profils:\n$e",
+          ),
+          duration: const Duration(seconds: 5),
+        ),
       );
     }
   }
@@ -78,7 +90,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isWoman ? "Profil einrichten (Frau)" : "Profil einrichten (Mann)"),
+        title: Text(
+          isWoman ? "Profil einrichten (Frau)" : "Profil einrichten (Mann)",
+        ),
         backgroundColor: Colors.pink,
       ),
       body: Padding(
