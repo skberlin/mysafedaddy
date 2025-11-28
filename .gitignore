@@ -1,3 +1,15 @@
+# Firebase private keys - NIEMALS committen
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+
+# CocoaPods – automatisch regeneriert
+ios/Podfile
+macos/Podfile
+
+# Firebase local CLI settings
+firebase.json
+
 # Miscellaneous
 *.class
 *.log
