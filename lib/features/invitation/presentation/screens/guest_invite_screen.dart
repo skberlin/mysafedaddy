@@ -66,7 +66,23 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
     }
 
     try {
-      await _inviteRef.set({
+      // 1. Globales Invite-Dokument laden (ownerUid herausfinden)
+      final snap = await _inviteRef.get();
+      if (!snap.exists) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Einladung existiert nicht mehr."),
+          ),
+        );
+        return;
+      }
+
+      final data = snap.data()!;
+      final ownerUid = data['ownerUid'] as String?;
+
+      // 2. Daten, die geschrieben werden sollen
+      final updateData = {
         'guestFirstName': firstName,
         'guestLastName': lastName,
         'guestBirthDate': birthDate,
@@ -76,7 +92,21 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
         // HINWEIS:
         // Hier wird bewusst NOCH KEIN Foto und KEIN Ausweisbild gespeichert.
         // Später kommt hier der Upload eines Selfies + KI-Ausweisprüfung dazu.
-      }, SetOptions(merge: true));
+      };
+
+      // 3. Globales invites/{inviteId} aktualisieren
+      await _inviteRef.set(updateData, SetOptions(merge: true));
+
+      // 4. Spiegelung in users/{ownerUid}/invites/{inviteId}
+      if (ownerUid != null) {
+        final userInviteRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(ownerUid)
+            .collection('invites')
+            .doc(widget.inviteId);
+
+        await userInviteRef.set(updateData, SetOptions(merge: true));
+      }
 
       if (!mounted) return;
 

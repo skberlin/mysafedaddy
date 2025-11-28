@@ -132,6 +132,15 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     final createdAt = data['createdAt'] as Timestamp?;
                     final createdDate = createdAt?.toDate();
 
+                    final guestFirstName = data['guestFirstName'] as String?;
+                    final guestLastName = data['guestLastName'] as String?;
+                    final verifiedBasic = data['verifiedBasic'] == true;
+
+                    final guestName = (guestFirstName != null &&
+                            guestFirstName.isNotEmpty)
+                        ? "$guestFirstName ${guestLastName ?? ''}".trim()
+                        : null;
+
                     return Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -182,6 +191,49 @@ class _InvitationScreenState extends State<InvitationScreen> {
                                     color: Colors.grey,
                                   ),
                                 ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (guestName != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.person, size: 18),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Gast: $guestName",
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            )
+                          else
+                            const Text(
+                              "Gast hat Daten noch nicht ausgefüllt.",
+                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                verifiedBasic
+                                    ? Icons.verified
+                                    : Icons.verified_outlined,
+                                size: 18,
+                                color: verifiedBasic
+                                    ? Colors.green
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                verifiedBasic
+                                    ? "Ident-Status: Basisdaten bestätigt"
+                                    : "Ident-Status: noch offen",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: verifiedBasic
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
