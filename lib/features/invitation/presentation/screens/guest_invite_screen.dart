@@ -66,7 +66,6 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
     }
 
     try {
-      // 1. Globales Invite-Dokument laden (ownerUid herausfinden)
       final snap = await _inviteRef.get();
       if (!snap.exists) {
         if (!mounted) return;
@@ -81,7 +80,6 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
       final data = snap.data()!;
       final ownerUid = data['ownerUid'] as String?;
 
-      // 2. Daten, die geschrieben werden sollen
       final updateData = {
         'guestFirstName': firstName,
         'guestLastName': lastName,
@@ -89,23 +87,19 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
         'verifiedBasic': true,
         'status': 'used',
         'verifiedAt': FieldValue.serverTimestamp(),
-        // HINWEIS:
-        // Hier wird bewusst NOCH KEIN Foto und KEIN Ausweisbild gespeichert.
-        // Später kommt hier der Upload eines Selfies + KI-Ausweisprüfung dazu.
       };
 
-      // 3. Globales invites/{inviteId} aktualisieren
+      // global speichern
       await _inviteRef.set(updateData, SetOptions(merge: true));
 
-      // 4. Spiegelung in users/{ownerUid}/invites/{inviteId}
+      // spiegeln bei der Frau
       if (ownerUid != null) {
-        final userInviteRef = FirebaseFirestore.instance
+        await FirebaseFirestore.instance
             .collection('users')
             .doc(ownerUid)
             .collection('invites')
-            .doc(widget.inviteId);
-
-        await userInviteRef.set(updateData, SetOptions(merge: true));
+            .doc(widget.inviteId)
+            .set(updateData, SetOptions(merge: true));
       }
 
       if (!mounted) return;
@@ -116,8 +110,8 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
           title: const Text("Vielen Dank"),
           content: const Text(
             "Deine Basisdaten wurden übermittelt.\n"
-            "In der finalen Version wird zusätzlich ein Selfie und optional ein "
-            "Ausweis-Foto geprüft, ohne das Dokument dauerhaft zu speichern.",
+            "Als nächstes kannst du ein Selfie aufnehmen, "
+            "damit die Frau weiß, wer du bist.",
           ),
           actions: [
             TextButton(
@@ -153,8 +147,7 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
         ),
         body: const Center(
           child: Text(
-            "Diese Einladung konnte nicht gefunden werden.\n"
-            "Bitte prüfe den Code.",
+            "Diese Einladung konnte nicht gefunden werden.",
             textAlign: TextAlign.center,
           ),
         ),
@@ -192,14 +185,12 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
-                "Du wurdest über einen Code eingeladen.\n"
-                "Bitte gib deine Basisdaten ein. "
-                "In einem nächsten Schritt (noch nicht aktiv) wird zusätzlich "
-                "ein Selfie und optional ein Ausweis-Foto geprüft.",
-                style: const TextStyle(fontSize: 14),
+              const Text(
+                "Bitte gib deine Basisdaten ein, damit die Frau weiß, "
+                "wer du bist.",
               ),
               const SizedBox(height: 24),
+
               TextField(
                 controller: _firstNameController,
                 decoration: const InputDecoration(
@@ -208,6 +199,7 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: _lastNameController,
                 decoration: const InputDecoration(
@@ -216,32 +208,16 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: _birthDateController,
                 decoration: const InputDecoration(
-                  labelText: "Geburtsdatum (optional, z.B. 01.01.1990)",
+                  labelText: "Geburtsdatum (optional)",
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 24),
-              // HINWEIS: Hier kommt später die Fotoaufnahme rein.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  "SELFIE / AUSWEIS-FOTO (noch nicht aktiv)\n\n"
-                  "Später kann hier ein Live-Foto aufgenommen werden. "
-                  "Das Ausweisbild wird nur kurz verarbeitet, um Name und "
-                  "Geburtsdatum per KI zu extrahieren. "
-                  "Das Dokument selbst wird nicht dauerhaft gespeichert.",
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-              const SizedBox(height: 24),
+
               ElevatedButton(
                 onPressed: _submitBasicVerification,
                 style: ElevatedButton.styleFrom(
@@ -249,6 +225,24 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                   minimumSize: const Size(double.infinity, 50),
                 ),
                 child: const Text("Daten übermitteln"),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ---------- SELFIE BUTTON ----------
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/selfie-capture',
+                    arguments: widget.inviteId,
+                  );
+                },
+                icon: const Icon(Icons.camera_alt),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                label: const Text("Selfie aufnehmen"),
               ),
             ],
           ),

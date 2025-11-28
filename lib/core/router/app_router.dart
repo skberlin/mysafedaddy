@@ -11,6 +11,7 @@ import '../../features/emergency_contacts/presentation/screens/emergency_contact
 import '../../features/safety_timer/presentation/screens/safety_timer_screen.dart';
 import '../../features/invitation/presentation/screens/invitation_screen.dart';
 import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
+import '../../features/identification/presentation/screens/selfie_capture_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -67,10 +68,15 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const InvitationScreen());
 
       case '/invite-guest':
-        // erwartet: arguments = String inviteId
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
           builder: (_) => GuestInviteScreen(inviteId: inviteId),
+        );
+
+      case '/selfie-capture':
+        final inviteId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => SelfieCaptureScreen(inviteId: inviteId),
         );
 
       default:

@@ -21,57 +21,51 @@ class _InvitationScreenState extends State<InvitationScreen> {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/splash',
-          (route) => false,
+          (_) => false,
         );
       });
     }
   }
 
-  CollectionReference<Map<String, dynamic>> _userInvitesRef() {
+  CollectionReference<Map<String, dynamic>> _invitesRef() {
     return FirebaseFirestore.instance
         .collection('users')
         .doc(_uid)
         .collection('invites');
   }
 
-  CollectionReference<Map<String, dynamic>> _globalInvitesRef() {
-    return FirebaseFirestore.instance.collection('invites');
+  String _buildLink(String inviteId) {
+    return "https://mysafedaddy.app/invite/$inviteId";
   }
 
   Future<void> _createInvite() async {
     if (_uid == null) return;
 
-    // 1. Top-Level-Dokument mit zufälliger ID erzeugen
-    final globalDoc = _globalInvitesRef().doc();
-    final inviteId = globalDoc.id;
+    final globalRef =
+        FirebaseFirestore.instance.collection('invites').doc();
+
+    final inviteId = globalRef.id;
 
     final data = {
       'ownerUid': _uid,
       'createdAt': FieldValue.serverTimestamp(),
-      'status': 'open', // open / used / cancelled
+      'status': 'open',
       'verifiedBasic': false,
+      'selfieVerified': false,
     };
 
-    // 2. In globaler Collection speichern
-    await globalDoc.set(data);
+    await globalRef.set(data);
 
-    // 3. Für die Frau in ihrer Subcollection spiegeln
-    await _userInvitesRef().doc(inviteId).set(data);
+    await _invitesRef().doc(inviteId).set(data);
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          "Einladung erstellt. Teile diesen Code mit dem Mann:\n$inviteId",
-        ),
-        duration: const Duration(seconds: 5),
+        content: Text("Einladung erstellt: $inviteId"),
+        duration: const Duration(seconds: 4),
       ),
     );
-  }
-
-  String _buildLink(String inviteId) {
-    // Platzhalter-Link – später durch echten Deep-Link / Domain ersetzen
-    return "https://mysafedaddy.app/invite/$inviteId";
   }
 
   @override
@@ -87,190 +81,170 @@ class _InvitationScreenState extends State<InvitationScreen> {
         title: const Text("Einladungen"),
         backgroundColor: Colors.pink,
       ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              "Erstelle eine Einladung für dein nächstes Treffen.\n"
-              "Der Mann erhält einen Code/Link, um sich zu identifizieren und "
-              "ein Foto hochzuladen (wird in einem späteren Schritt ergänzt).",
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _userInvitesRef()
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _invitesRef()
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                final docs = snapshot.data?.docs ?? [];
+          final docs = snap.data!.docs;
 
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "Du hast noch keine Einladungen erstellt.\n"
-                      "Tippe auf das +, um eine Einladung zu erzeugen.",
-                      textAlign: TextAlign.center,
+          if (docs.isEmpty) {
+            return const Center(
+              child: Text(
+                "Noch keine Einladungen erstellt.\nTippe auf +",
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.only(bottom: 100),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final inviteId = doc.id;
+              final data = doc.data();
+
+              final status = data['status'] ?? 'open';
+              final guestFirstName = data['guestFirstName'];
+              final guestLastName = data['guestLastName'];
+
+              final guestName = (guestFirstName != null &&
+                      guestFirstName.toString().isNotEmpty)
+                  ? "$guestFirstName ${guestLastName ?? ''}"
+                  : null;
+
+              final verifiedBasic = data['verifiedBasic'] == true;
+              final selfieVerified = data['selfieVerified'] == true;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Einladungscode:",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    SelectableText(inviteId),
+
+                    const SizedBox(height: 8),
+                    const Text("Link:",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    SelectableText(
+                      _buildLink(inviteId),
+                      style:
+                          const TextStyle(color: Colors.blueAccent, fontSize: 13),
                     ),
-                  );
-                }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
-                    final inviteId = doc.id;
-                    final status = data['status'] ?? 'open';
-                    final createdAt = data['createdAt'] as Timestamp?;
-                    final createdDate = createdAt?.toDate();
+                    const SizedBox(height: 8),
+                    Chip(label: Text("Status: $status")),
 
-                    final guestFirstName = data['guestFirstName'] as String?;
-                    final guestLastName = data['guestLastName'] as String?;
-                    final verifiedBasic = data['verifiedBasic'] == true;
-
-                    final guestName = (guestFirstName != null &&
-                            guestFirstName.isNotEmpty)
-                        ? "$guestFirstName ${guestLastName ?? ''}".trim()
-                        : null;
-
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Einladungscode:",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            inviteId,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            "Link:",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            _buildLink(inviteId),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.blueGrey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
+                    const SizedBox(height: 12),
+                    guestName != null
+                        ? Row(
                             children: [
-                              Chip(
-                                label: Text("Status: $status"),
-                              ),
-                              const SizedBox(width: 8),
-                              if (createdDate != null)
-                                Text(
-                                  "Erstellt: ${createdDate.toLocal()}",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                  ),
-                                ),
+                              const Icon(Icons.person),
+                              const SizedBox(width: 6),
+                              Text("Gast: $guestName"),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          if (guestName != null)
-                            Row(
-                              children: [
-                                const Icon(Icons.person, size: 18),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Gast: $guestName",
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            )
-                          else
-                            const Text(
-                              "Gast hat Daten noch nicht ausgefüllt.",
-                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                          )
+                        : const Text("Gast hat Daten noch nicht ausgefüllt."),
+
+                    const SizedBox(height: 8),
+
+                    // ---------- STATUS BLOCK ----------
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              verifiedBasic
+                                  ? Icons.verified
+                                  : Icons.verified_outlined,
+                              color:
+                                  verifiedBasic ? Colors.green : Colors.grey,
+                              size: 20,
                             ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                verifiedBasic
-                                    ? Icons.verified
-                                    : Icons.verified_outlined,
-                                size: 18,
-                                color: verifiedBasic
+                            const SizedBox(width: 6),
+                            Text(
+                              verifiedBasic
+                                  ? "Ident-Status: Basisdaten bestätigt"
+                                  : "Ident-Status: noch offen",
+                              style: TextStyle(
+                                color:
+                                    verifiedBasic ? Colors.green : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              selfieVerified
+                                  ? Icons.face_retouching_natural
+                                  : Icons.face,
+                              color:
+                                  selfieVerified ? Colors.green : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              selfieVerified
+                                  ? "Selfie: vorhanden"
+                                  : "Selfie: noch ausstehend",
+                              style: TextStyle(
+                                color: selfieVerified
                                     ? Colors.green
                                     : Colors.grey,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                verifiedBasic
-                                    ? "Ident-Status: Basisdaten bestätigt"
-                                    : "Ident-Status: noch offen",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: verifiedBasic
-                                      ? Colors.green
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/invite-guest',
-                                  arguments: inviteId,
-                                );
-                              },
-                              icon: const Icon(Icons.visibility),
-                              label: const Text("Als Gast testen"),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/invite-guest',
+                            arguments: inviteId,
+                          );
+                        },
+                        icon: const Icon(Icons.visibility),
+                        label: const Text("Als Gast testen"),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _createInvite,
+        backgroundColor: Colors.pink,
+        label: const Text("Einladung erstellen"),
+        icon: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.pink,
-          onPressed: _createInvite,
-          icon: const Icon(Icons.add),
-          label: const Text("Einladung erstellen"),
-        ),
-      ),
     );
   }
 }
