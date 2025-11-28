@@ -1,0 +1,25 @@
+# Flutter / Dart
+.dart_tool/
+.buildlog/
+.packages
+pubspec.lock
+build/
+ios/Pods/
+macos/Pods/
+android/.gradle/
+android/app/build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Sonstiges
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Keine sensiblen Dateien
+*.keystore
+*.jks
+*.pem
+.env
