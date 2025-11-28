@@ -8,6 +8,7 @@ import '../../features/authentication/presentation/screens/verify_code_screen.da
 import '../../features/authentication/presentation/screens/profile_setup_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/emergency_contacts/presentation/screens/emergency_contacts_screen.dart';
+import '../../features/safety_timer/presentation/screens/safety_timer_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -22,7 +23,6 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const RoleSelectionScreen());
 
       case '/phone-auth':
-        // Rolle kommt als String-Argument: "woman" oder "man"
         final role = settings.arguments as String? ?? 'woman';
         return MaterialPageRoute(
           builder: (_) => PhoneAuthScreen(role: role),
@@ -57,6 +57,9 @@ class AppRouter {
 
       case '/emergency-contacts':
         return MaterialPageRoute(builder: (_) => const EmergencyContactsScreen());
+
+      case '/safety-timer':
+        return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
 
       default:
         return MaterialPageRoute(

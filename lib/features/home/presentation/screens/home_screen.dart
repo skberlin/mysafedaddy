@@ -21,11 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<DocumentSnapshot<Map<String, dynamic>>> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Wenn niemand eingeloggt ist, zurück zum Splash
       Future.microtask(() {
         Navigator.pushNamedAndRemoveUntil(context, '/splash', (route) => false);
       });
-      // Dummy zurückgeben, wird durch Navigation ersetzt
       return FirebaseFirestore.instance.collection('users').doc('dummy').get();
     }
 
@@ -104,25 +102,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Timer starten (Platzhalter)
+                // Timer starten → SafetyTimerScreen
                 _HomeActionButton(
                   icon: Icons.timer,
                   title: "Timer starten",
                   subtitle: "Sicherheitstimer für ein Treffen",
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Timer-Funktion wird in einem späteren Schritt implementiert.",
-                        ),
-                      ),
-                    );
+                    Navigator.pushNamed(context, '/safety-timer');
                   },
                 ),
 
                 const SizedBox(height: 12),
 
-                // Notfallkontakte – jetzt mit Navigation
                 _HomeActionButton(
                   icon: Icons.contact_phone,
                   title: "Notfallkontakte",
@@ -134,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 12),
 
-                // Premium (Platzhalter)
                 _HomeActionButton(
                   icon: Icons.star,
                   title: "Premium",
