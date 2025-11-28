@@ -9,6 +9,7 @@ import '../../features/authentication/presentation/screens/profile_setup_screen.
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/emergency_contacts/presentation/screens/emergency_contacts_screen.dart';
 import '../../features/safety_timer/presentation/screens/safety_timer_screen.dart';
+import '../../features/invitation/presentation/screens/invitation_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -60,6 +61,9 @@ class AppRouter {
 
       case '/safety-timer':
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
+
+      case '/invitation':
+        return MaterialPageRoute(builder: (_) => const InvitationScreen());
 
       default:
         return MaterialPageRoute(

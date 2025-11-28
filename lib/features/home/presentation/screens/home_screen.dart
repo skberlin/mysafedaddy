@@ -72,74 +72,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Padding(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Willkommen, $firstName $lastName",
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Willkommen, $firstName $lastName",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Chip(
-                      label: Text(isWoman ? "Rolle: Frau" : "Rolle: Mann"),
-                      backgroundColor: Colors.pink.shade50,
-                    ),
-                    const SizedBox(width: 8),
-                    Chip(
-                      label: Text(phone),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "Was möchtest du tun?",
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 16),
-
-                // Timer starten → SafetyTimerScreen
-                _HomeActionButton(
-                  icon: Icons.timer,
-                  title: "Timer starten",
-                  subtitle: "Sicherheitstimer für ein Treffen",
-                  onTap: () {
-                    Navigator.pushNamed(context, '/safety-timer');
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _HomeActionButton(
-                  icon: Icons.contact_phone,
-                  title: "Notfallkontakte",
-                  subtitle: "Vertrauenspersonen hinterlegen",
-                  onTap: () {
-                    Navigator.pushNamed(context, '/emergency-contacts');
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _HomeActionButton(
-                  icon: Icons.star,
-                  title: "Premium",
-                  subtitle: "Unbegrenzte Kontakte & SMS-Alarm",
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Premium-Modell wird später integriert.",
-                        ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Chip(
+                        label: Text(isWoman ? "Rolle: Frau" : "Rolle: Mann"),
+                        backgroundColor: Colors.pink.shade50,
                       ),
-                    );
-                  },
-                ),
-              ],
+                      const SizedBox(width: 8),
+                      Chip(
+                        label: Text(phone),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Was möchtest du tun?",
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _HomeActionButton(
+                    icon: Icons.timer,
+                    title: "Timer starten",
+                    subtitle: "Sicherheitstimer für ein Treffen",
+                    onTap: () {
+                      Navigator.pushNamed(context, '/safety-timer');
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // NEU: Einladung für Mann
+                  _HomeActionButton(
+                    icon: Icons.person_add,
+                    title: "Mann einladen",
+                    subtitle: "Einladungslink & Ident-Check vorbereiten",
+                    onTap: () {
+                      Navigator.pushNamed(context, '/invitation');
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _HomeActionButton(
+                    icon: Icons.contact_phone,
+                    title: "Notfallkontakte",
+                    subtitle: "Vertrauenspersonen hinterlegen",
+                    onTap: () {
+                      Navigator.pushNamed(context, '/emergency-contacts');
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _HomeActionButton(
+                    icon: Icons.star,
+                    title: "Premium",
+                    subtitle: "Unbegrenzte Kontakte & SMS-Alarm",
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text("Premium-Modell wird später integriert."),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },
