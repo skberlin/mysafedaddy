@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -15,12 +16,12 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2));
 
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Nutzer ist eingeloggt → später HomeScreen
+      // Nutzer ist eingeloggt – später z.B. HomeScreen
       Navigator.pushReplacementNamed(context, '/role-selection');
     } else {
       Navigator.pushReplacementNamed(context, '/onboarding');
@@ -29,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -41,7 +42,10 @@ class _SplashScreenState extends State<SplashScreen> {
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-            Text("Sicherheit beim Dating", style: TextStyle(fontSize: 16)),
+            Text(
+              "Sicherheit beim Dating",
+              style: TextStyle(fontSize: 16),
+            ),
           ],
         ),
       ),

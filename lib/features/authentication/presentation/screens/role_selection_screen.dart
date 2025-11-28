@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
+  const RoleSelectionScreen({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Ich bin..."),
+        title: const Text("Ich bin..."),
         backgroundColor: Colors.pink,
       ),
       body: Padding(
@@ -13,7 +15,6 @@ class RoleSelectionScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(
@@ -24,13 +25,11 @@ class RoleSelectionScreen extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.pink,
-                minimumSize: Size(double.infinity, 50),
+                minimumSize: const Size(double.infinity, 50),
               ),
-              child: Text("Frau"),
+              child: const Text("Frau"),
             ),
-
-            SizedBox(height: 20),
-
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(
@@ -40,10 +39,10 @@ class RoleSelectionScreen extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[800],
-                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.grey,
+                minimumSize: const Size(double.infinity, 50),
               ),
-              child: Text("Mann"),
+              child: const Text("Mann"),
             ),
           ],
         ),

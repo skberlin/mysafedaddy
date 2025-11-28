@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
-  const PhoneAuthScreen({Key? key}) : super(key: key);
+  final String role; // "woman" oder "man"
+
+  const PhoneAuthScreen({Key? key, required this.role}) : super(key: key);
 
   @override
   _PhoneAuthScreenState createState() => _PhoneAuthScreenState();
@@ -22,11 +24,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
   Future<void> _sendCode() async {
     String phone = _controller.text.trim();
-
-    // Leerzeichen entfernen
     phone = phone.replaceAll(' ', '');
 
-    // Format prüfen: Muss mit +49 anfangen und danach nur Ziffern
     if (!_validateGermanNumber(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -44,44 +43,41 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: phone,
       timeout: const Duration(seconds: 60),
-
-      // Wird automatisch auf manchen Geräten ausgeführt – für den Start lassen wir das leer
       verificationCompleted: (PhoneAuthCredential credential) async {
         // Optional: Auto-Login später nachrüsten
       },
-
       verificationFailed: (FirebaseAuthException e) {
         setState(() => loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? 'Verifizierung fehlgeschlagen')),
         );
       },
-
       codeSent: (String verificationId, int? resendToken) {
         setState(() => loading = false);
 
-        // Wir gehen zum Code-Verify-Screen und geben phone + verificationId mit
         Navigator.pushNamed(
           context,
           '/verify-code',
           arguments: {
             'phoneNumber': phone,
             'verificationId': verificationId,
+            'role': widget.role,
           },
         );
       },
-
       codeAutoRetrievalTimeout: (String verificationId) {
-        // Kann leer bleiben, wenn du nichts Spezielles machen willst
+        // Kann leer bleiben
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final roleText = widget.role == 'woman' ? 'Frau' : 'Mann';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("SMS-Verifizierung"),
+        title: Text("SMS-Verifizierung ($roleText)"),
         backgroundColor: Colors.pink,
       ),
       body: Padding(
@@ -101,7 +97,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
               style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
             const SizedBox(height: 24),
-
             TextField(
               controller: _controller,
               keyboardType: TextInputType.phone,
@@ -112,9 +107,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 prefixIcon: Icon(Icons.phone),
               ),
             ),
-
             const SizedBox(height: 30),
-
             ElevatedButton(
               onPressed: loading ? null : _sendCode,
               style: ElevatedButton.styleFrom(

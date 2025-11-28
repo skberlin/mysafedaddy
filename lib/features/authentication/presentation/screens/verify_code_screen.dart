@@ -4,11 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 class VerifyCodeScreen extends StatefulWidget {
   final String phoneNumber;
   final String verificationId;
+  final String role; // "woman" oder "man"
 
   const VerifyCodeScreen({
+    Key? key,
     required this.phoneNumber,
     required this.verificationId,
-    Key? key,
+    required this.role,
   }) : super(key: key);
 
   @override
@@ -16,7 +18,7 @@ class VerifyCodeScreen extends StatefulWidget {
 }
 
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
-  final _codeController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
   bool loading = false;
 
   Future<void> _verify() async {
@@ -33,11 +35,15 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // TODO: hier später auf Profil-Setup oder HomeScreen routen
+      // Nach erfolgreicher Verifizierung geht es zum Profil-Setup
       Navigator.pushNamedAndRemoveUntil(
         context,
-        '/role-selection',
-        (_) => false,
+        '/profile-setup',
+        (route) => false,
+        arguments: {
+          'phoneNumber': widget.phoneNumber,
+          'role': widget.role,
+        },
       );
     } catch (e) {
       setState(() => loading = false);
