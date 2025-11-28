@@ -27,22 +27,36 @@ class _InvitationScreenState extends State<InvitationScreen> {
     }
   }
 
-  CollectionReference<Map<String, dynamic>> _invitesRef() {
+  CollectionReference<Map<String, dynamic>> _userInvitesRef() {
     return FirebaseFirestore.instance
         .collection('users')
         .doc(_uid)
         .collection('invites');
   }
 
+  CollectionReference<Map<String, dynamic>> _globalInvitesRef() {
+    return FirebaseFirestore.instance.collection('invites');
+  }
+
   Future<void> _createInvite() async {
     if (_uid == null) return;
 
-    final docRef = await _invitesRef().add({
+    // 1. Top-Level-Dokument mit zufälliger ID erzeugen
+    final globalDoc = _globalInvitesRef().doc();
+    final inviteId = globalDoc.id;
+
+    final data = {
+      'ownerUid': _uid,
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'open', // open / used / cancelled
-    });
+      'verifiedBasic': false,
+    };
 
-    final inviteId = docRef.id;
+    // 2. In globaler Collection speichern
+    await globalDoc.set(data);
+
+    // 3. Für die Frau in ihrer Subcollection spiegeln
+    await _userInvitesRef().doc(inviteId).set(data);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -86,7 +100,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _invitesRef()
+              stream: _userInvitesRef()
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -127,9 +141,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             "Einladungscode:",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -139,9 +153,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
                             style: const TextStyle(fontSize: 14),
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          const Text(
                             "Link:",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -169,6 +183,21 @@ class _InvitationScreenState extends State<InvitationScreen> {
                                   ),
                                 ),
                             ],
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/invite-guest',
+                                  arguments: inviteId,
+                                );
+                              },
+                              icon: const Icon(Icons.visibility),
+                              label: const Text("Als Gast testen"),
+                            ),
                           ),
                         ],
                       ),

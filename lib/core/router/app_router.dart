@@ -10,6 +10,7 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/emergency_contacts/presentation/screens/emergency_contacts_screen.dart';
 import '../../features/safety_timer/presentation/screens/safety_timer_screen.dart';
 import '../../features/invitation/presentation/screens/invitation_screen.dart';
+import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -64,6 +65,13 @@ class AppRouter {
 
       case '/invitation':
         return MaterialPageRoute(builder: (_) => const InvitationScreen());
+
+      case '/invite-guest':
+        // erwartet: arguments = String inviteId
+        final inviteId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => GuestInviteScreen(inviteId: inviteId),
+        );
 
       default:
         return MaterialPageRoute(
