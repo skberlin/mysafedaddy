@@ -28,6 +28,8 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
   bool _saving = false;
   String? _activeTimerId;
 
+  bool _alarmCreated = false; // ⬅️ neu: damit Alarm nur einmal geschrieben wird
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +67,7 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
 
     setState(() {
       _saving = true;
+      _alarmCreated = false; // bei neuem Timer Alarm-Flag zurücksetzen
     });
 
     try {
@@ -82,6 +85,7 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
         'remainingSeconds': _remainingSeconds,
         'startedAt': FieldValue.serverTimestamp(),
         'extensions': 0,
+        'autoStarted': false,
       };
 
       await doc.set(data);
@@ -164,7 +168,6 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
             .update({'remainingSeconds': _remainingSeconds});
       }
     } catch (e) {
-      // nur loggen, kein hartes Abbrechen
       debugPrint("Fehler beim Verlängern des Timers: $e");
     }
   }
@@ -183,7 +186,9 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
     };
 
     try {
-      await _timersRef().doc(_activeTimerId).set(update, SetOptions(merge: true));
+      await _timersRef()
+          .doc(_activeTimerId)
+          .set(update, SetOptions(merge: true));
 
       if (widget.inviteId != null) {
         final inviteRef = FirebaseFirestore.instance
@@ -200,6 +205,80 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
     }
   }
 
+  /// ⬅️ NEU: Alarm-Datensatz in Firestore schreiben
+  Future<void> _createAlarmRecord() async {
+    if (_uid == null || _alarmCreated) return;
+
+    _alarmCreated = true;
+
+    final alarmsRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .collection('alarms');
+
+    final alarmDoc = alarmsRef.doc();
+    final alarmId = alarmDoc.id;
+
+    double? lat;
+    double? lng;
+    String? meetingStatus;
+
+    // Wenn Timer mit einem Treffen verknüpft ist, versuchen wir,
+    // letzte Position und Meeting-Status aus der Einladung zu lesen.
+    if (widget.inviteId != null) {
+      final inviteSnap = await FirebaseFirestore.instance
+          .collection('invites')
+          .doc(widget.inviteId)
+          .get();
+
+      if (inviteSnap.exists) {
+        final data = inviteSnap.data()!;
+        lat = (data['womanLastLat'] as num?)?.toDouble();
+        lng = (data['womanLastLng'] as num?)?.toDouble();
+        meetingStatus = data['meetingStatus'] as String?;
+      }
+    }
+
+    final alarmData = {
+      'userUid': _uid,
+      'inviteId': widget.inviteId,
+      'timerId': _activeTimerId,
+      'status': 'open', // open | notified | resolved
+      'createdAt': FieldValue.serverTimestamp(),
+      'source': 'timer_expired',
+      'locationLat': lat,
+      'locationLng': lng,
+      'meetingStatusAtAlarm': meetingStatus,
+      'demoNotification': true, // Kennzeichnung: Demo-Alarm
+    };
+
+    try {
+      await alarmDoc.set(alarmData);
+
+      // Falls mit Einladung verknüpft, auch dort ablegen
+      if (widget.inviteId != null) {
+        final inviteRef = FirebaseFirestore.instance
+            .collection('invites')
+            .doc(widget.inviteId);
+
+        await inviteRef
+            .collection('alarms')
+            .doc(alarmId)
+            .set(alarmData);
+
+        await inviteRef.set(
+          {
+            'lastAlarmId': alarmId,
+            'lastAlarmAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+    } catch (e) {
+      debugPrint("Fehler beim Schreiben des Alarm-Datensatzes: $e");
+    }
+  }
+
   Future<void> _onTimerExpired() async {
     if (_activeTimerId == null) return;
 
@@ -209,7 +288,10 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
     };
 
     try {
-      await _timersRef().doc(_activeTimerId).set(update, SetOptions(merge: true));
+      // Timer-Status in Firestore aktualisieren
+      await _timersRef()
+          .doc(_activeTimerId)
+          .set(update, SetOptions(merge: true));
 
       if (widget.inviteId != null) {
         final inviteRef = FirebaseFirestore.instance
@@ -222,6 +304,9 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
             .set(update, SetOptions(merge: true));
       }
 
+      // Alarm-Datensatz anlegen (User + optional Invite)
+      await _createAlarmRecord();
+
       if (!mounted) return;
 
       showDialog(
@@ -230,9 +315,10 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
           title: const Text("Timer abgelaufen"),
           content: const Text(
             "Der Sicherheitstimer ist abgelaufen.\n\n"
-            "In der finalen Version würden jetzt deine Notfallkontakte "
-            "automatisch per SMS/E-Mail informiert und der letzte Standort "
-            "übermittelt.",
+            "In dieser Demo-Version wurden deine Alarmdaten in Firestore "
+            "gespeichert. In der finalen Version würden jetzt deine "
+            "Notfallkontakte automatisch per SMS/E-Mail informiert und der "
+            "letzte Standort übermittelt.",
           ),
           actions: [
             TextButton(
