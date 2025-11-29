@@ -15,6 +15,10 @@ import '../../features/invitation/presentation/screens/invitation_screen.dart';
 import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
 import '../../features/identification/presentation/screens/selfie_capture_screen.dart';
 import '../../features/identification/presentation/screens/id_verification_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/legal/presentation/screens/legal_terms_screen.dart';
+import '../../features/legal/presentation/screens/privacy_policy_screen.dart';
+import '../../features/legal/presentation/screens/imprint_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -22,6 +26,25 @@ class AppRouter {
       case '/splash':
         return MaterialPageRoute(builder: (_) => const SplashScreen());
 
+      case '/settings':
+        return MaterialPageRoute(
+          builder: (_) => const SettingsScreen(),
+        );
+
+      case '/legal-terms':
+        return MaterialPageRoute(
+          builder: (_) => const LegalTermsScreen(),
+        );
+
+      case '/privacy-policy':
+        return MaterialPageRoute(
+          builder: (_) => const PrivacyPolicyScreen(),
+        );
+
+      case '/imprint':
+        return MaterialPageRoute(
+          builder: (_) => const ImprintScreen(),
+        );
       case '/onboarding':
         return MaterialPageRoute(builder: (_) => const OnboardingScreen());
 

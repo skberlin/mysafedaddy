@@ -176,26 +176,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.pink,
-        title: const Text("MySafeDaddy"),
-        actions: [
-          IconButton(
-            tooltip:
-                "Letzten Einladungslink teilen (Demo: kopiert in Zwischenablage)",
-            onPressed: _sharingInvite ? null : _shareLatestInvite,
-            icon: _sharingInvite
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.share),
-          ),
-        ],
-      ),
+  backgroundColor: Colors.pink,
+  title: const Text("MySafeDaddy"),
+  actions: [
+    IconButton(
+      tooltip:
+          "Letzten Einladungslink teilen (Demo: kopiert in Zwischenablage)",
+      onPressed: _sharingInvite ? null : _shareLatestInvite,
+      icon: _sharingInvite
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Icon(Icons.share),
+    ),
+    IconButton(
+      tooltip: "Einstellungen",
+      onPressed: () {
+        Navigator.pushNamed(context, '/settings');
+      },
+      icon: const Icon(Icons.settings),
+    ),
+  ],
+),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _loadingProfile
