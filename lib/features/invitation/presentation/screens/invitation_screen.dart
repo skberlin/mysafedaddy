@@ -48,7 +48,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
     final data = {
       'ownerUid': _uid,
       'createdAt': FieldValue.serverTimestamp(),
-      'status': 'open',
+      'status': 'open', // open | used | revoked
       'verifiedBasic': false,
       'selfiePresent': false,
       'selfieVerified': false,
@@ -57,7 +57,6 @@ class _InvitationScreenState extends State<InvitationScreen> {
     };
 
     await globalRef.set(data);
-
     await _invitesRef().doc(inviteId).set(data);
 
     if (!mounted) return;
@@ -67,6 +66,73 @@ class _InvitationScreenState extends State<InvitationScreen> {
         duration: const Duration(seconds: 4),
       ),
     );
+  }
+
+  Future<void> _revokeInvite(String inviteId) async {
+    if (_uid == null) return;
+
+    try {
+      final update = {
+        'status': 'revoked',
+        'revokedAt': FieldValue.serverTimestamp(),
+      };
+
+      // globales Invite-Dokument aktualisieren
+      await FirebaseFirestore.instance
+          .collection('invites')
+          .doc(inviteId)
+          .set(update, SetOptions(merge: true));
+
+      // gespiegelt bei der Frau aktualisieren
+      await _invitesRef()
+          .doc(inviteId)
+          .set(update, SetOptions(merge: true));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Einladung wurde zurückgezogen."),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Fehler beim Zurückziehen: $e"),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmRevoke(String inviteId) async {
+    final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Einladung zurückziehen"),
+            content: const Text(
+              "Möchtest du diese Einladung wirklich zurückziehen?\n\n"
+              "Der Gast kann den Code danach nicht mehr nutzen.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text("Abbrechen"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  "Zurückziehen",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (confirm) {
+      await _revokeInvite(inviteId);
+    }
   }
 
   @override
@@ -111,7 +177,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
               final inviteId = doc.id;
               final data = doc.data();
 
-              final status = data['status'] ?? 'open';
+              final status = (data['status'] ?? 'open') as String;
               final guestFirstName = data['guestFirstName'];
               final guestLastName = data['guestLastName'];
               final guestName = (guestFirstName != null &&
@@ -124,6 +190,18 @@ class _InvitationScreenState extends State<InvitationScreen> {
               final selfieVerified = data['selfieVerified'] == true;
               final idVerified = data['idVerified'] == true;
               final badgeLevel = (data['badgeLevel'] ?? 0) as int;
+
+              Color statusColor;
+              switch (status) {
+                case 'used':
+                  statusColor = Colors.blueGrey;
+                  break;
+                case 'revoked':
+                  statusColor = Colors.redAccent;
+                  break;
+                default:
+                  statusColor = Colors.green;
+              }
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -158,7 +236,14 @@ class _InvitationScreenState extends State<InvitationScreen> {
                     ),
 
                     const SizedBox(height: 8),
-                    Chip(label: Text("Status: $status")),
+                    Chip(
+                      label: Text("Status: $status"),
+                      backgroundColor: statusColor.withOpacity(0.1),
+                      labelStyle: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
 
                     const SizedBox(height: 12),
                     guestName != null
@@ -269,18 +354,46 @@ class _InvitationScreenState extends State<InvitationScreen> {
 
                     const SizedBox(height: 12),
 
+                    // ---------- ACTION BUTTONS ----------
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/invite-guest',
-                            arguments: inviteId,
-                          );
-                        },
-                        icon: const Icon(Icons.visibility),
-                        label: const Text("Als Gast testen"),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          if (status != 'revoked')
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/invite-guest',
+                                  arguments: inviteId,
+                                );
+                              },
+                              icon: const Icon(Icons.visibility),
+                              label: const Text("Als Gast testen"),
+                            ),
+                          TextButton.icon(
+                            onPressed: status == 'revoked'
+                                ? null
+                                : () => _confirmRevoke(inviteId),
+                            icon: Icon(
+                              Icons.cancel,
+                              color: status == 'revoked'
+                                  ? Colors.grey
+                                  : Colors.redAccent,
+                            ),
+                            label: Text(
+                              status == 'revoked'
+                                  ? "Zurückgezogen"
+                                  : "Einladung zurückziehen",
+                              style: TextStyle(
+                                color: status == 'revoked'
+                                    ? Colors.grey
+                                    : Colors.redAccent,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
