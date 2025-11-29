@@ -10,205 +10,206 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<DocumentSnapshot<Map<String, dynamic>>> _userFuture;
+  String? _uid;
+  String? _displayName;
+  String? _role;
+  String? _phoneNumber;
 
   @override
   void initState() {
     super.initState();
-    _userFuture = _loadUserProfile();
+    _uid = FirebaseAuth.instance.currentUser?.uid;
+    _loadProfile();
   }
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> _loadUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Future.microtask(() {
-        Navigator.pushNamedAndRemoveUntil(context, '/splash', (route) => false);
-      });
-      return FirebaseFirestore.instance.collection('users').doc('dummy').get();
-    }
-
-    return FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+  Future<void> _loadProfile() async {
+    if (_uid == null) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .get();
+    if (!snap.exists) return;
+    final data = snap.data()!;
+    setState(() {
+      _displayName = data['displayName'] as String? ?? 'Nutzerin';
+      _role = data['role'] as String? ?? 'woman';
+      _phoneNumber = data['phoneNumber'] as String?;
+    });
   }
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/splash', (route) => false);
+  Widget _buildMenuCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: iconColor.withOpacity(0.1),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final name = _displayName ?? 'Nutzerin';
+    final phone = _phoneNumber ?? '';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("MySafeDaddy"),
         backgroundColor: Colors.pink,
         actions: [
           IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: "Logout",
+            onPressed: () {
+              // später: Sharing des Einladungslinks / App-Link
+            },
+            icon: const Icon(Icons.share),
           ),
         ],
       ),
-      body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        future: _userFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(
-              child: Text("Kein Profil gefunden. Bitte App neu starten."),
-            );
-          }
-
-          final data = snapshot.data!.data()!;
-          final firstName = data['firstName'] ?? '';
-          final lastName = data['lastName'] ?? '';
-          final phone = data['phoneNumber'] ?? '';
-          final role = data['role'] ?? 'woman';
-          final isWoman = role == 'woman';
-
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Willkommen, $firstName $lastName",
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Willkommen, $name",
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "Rolle: ${_role == 'man' ? 'Mann' : 'Frau'}",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (phone.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      phone,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Chip(
-                        label: Text(isWoman ? "Rolle: Frau" : "Rolle: Mann"),
-                        backgroundColor: Colors.pink.shade50,
-                      ),
-                      const SizedBox(width: 8),
-                      Chip(
-                        label: Text(phone),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Was möchtest du tun?",
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _HomeActionButton(
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Was möchtest du tun?",
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildMenuCard(
                     icon: Icons.timer,
+                    iconColor: Colors.pink,
                     title: "Timer starten",
                     subtitle: "Sicherheitstimer für ein Treffen",
                     onTap: () {
                       Navigator.pushNamed(context, '/safety-timer');
                     },
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // NEU: Einladung für Mann
-                  _HomeActionButton(
-                    icon: Icons.person_add,
+                  _buildMenuCard(
+                    icon: Icons.person_add_alt_1,
+                    iconColor: Colors.pink,
                     title: "Mann einladen",
                     subtitle: "Einladungslink & Ident-Check vorbereiten",
                     onTap: () {
                       Navigator.pushNamed(context, '/invitation');
                     },
                   ),
-
-                  const SizedBox(height: 12),
-
-                  _HomeActionButton(
-                    icon: Icons.contact_phone,
+                  _buildMenuCard(
+                    icon: Icons.contact_emergency,
+                    iconColor: Colors.deepPurple,
                     title: "Notfallkontakte",
                     subtitle: "Vertrauenspersonen hinterlegen",
                     onTap: () {
                       Navigator.pushNamed(context, '/emergency-contacts');
                     },
                   ),
-
-                  const SizedBox(height: 12),
-
-                  _HomeActionButton(
+                  _buildMenuCard(
+                    icon: Icons.history,
+                    iconColor: Colors.orange,
+                    title: "Alarm-Historie",
+                    subtitle:
+                        "Alle ausgelösten Alarme aus dem Sicherheitstimer",
+                    onTap: () {
+                      Navigator.pushNamed(context, '/alarm-history');
+                    },
+                  ),
+                  _buildMenuCard(
                     icon: Icons.star,
+                    iconColor: Colors.pink,
                     title: "Premium",
                     subtitle: "Unbegrenzte Kontakte & SMS-Alarm",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text("Premium-Modell wird später integriert."),
-                        ),
-                      );
+                      // später: Premium-/Paywall-Screen
                     },
                   ),
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _HomeActionButton extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _HomeActionButton({
-    Key? key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.grey.shade100,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 32, color: Colors.pink),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right),
           ],
         ),
       ),

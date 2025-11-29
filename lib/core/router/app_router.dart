@@ -10,6 +10,7 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/emergency_contacts/presentation/screens/emergency_contacts_screen.dart';
 import '../../features/safety_timer/presentation/screens/safety_timer_screen.dart';
 import '../../features/safety_timer/presentation/screens/meeting_tracking_screen.dart';
+import '../../features/safety_timer/presentation/screens/alarm_history_screen.dart';
 import '../../features/invitation/presentation/screens/invitation_screen.dart';
 import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
 import '../../features/identification/presentation/screens/selfie_capture_screen.dart';
@@ -78,13 +79,17 @@ class AppRouter {
         );
 
       case '/safety-timer-plain':
-        // optional: falls du irgendwo einen "losen" Timer ohne Meeting brauchst
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
 
       case '/meeting-tracking':
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
           builder: (_) => MeetingTrackingScreen(inviteId: inviteId),
+        );
+
+      case '/alarm-history':
+        return MaterialPageRoute(
+          builder: (_) => const AlarmHistoryScreen(),
         );
 
       case '/invitation':
