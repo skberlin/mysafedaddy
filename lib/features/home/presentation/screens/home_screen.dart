@@ -37,6 +37,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Stream für alle offenen Alarme (status == "open").
+  /// Dieser Stream wird für das Badge in der AppBar benutzt.
+  Stream<QuerySnapshot<Map<String, dynamic>>> _openAlarmsStream() {
+    if (_uid == null) {
+      // Wenn noch kein User geladen ist, liefern wir einfach einen leeren Stream.
+      return const Stream<QuerySnapshot<Map<String, dynamic>>>.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .collection('alarms')
+        .where('status', isEqualTo: 'open')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
   Widget _buildMenuCard({
     required IconData icon,
     required Color iconColor,
@@ -91,6 +108,55 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// AppBar-Action: Glocken-Icon mit Badge für offene Alarme.
+  Widget _buildAlarmAction() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _openAlarmsStream(),
+      builder: (context, snapshot) {
+        final count = snapshot.data?.docs.length ?? 0;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              tooltip: "Alarm-Historie",
+              onPressed: () {
+                Navigator.pushNamed(context, '/alarm-history');
+              },
+              icon: const Icon(Icons.notifications),
+            ),
+            if (count > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Center(
+                    child: Text(
+                      count > 9 ? '9+' : '$count',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = _displayName ?? 'Nutzerin';
@@ -101,9 +167,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text("MySafeDaddy"),
         backgroundColor: Colors.pink,
         actions: [
+          // 🔔 Alarm-Icon mit Badge
+          _buildAlarmAction(),
+
+          // Teilen-Icon (kann später für App-/Einladungslink genutzt werden)
           IconButton(
             onPressed: () {
-              // später: Sharing des Einladungslinks / App-Link
+              // TODO: spätere Implementierung für Teilen
             },
             icon: const Icon(Icons.share),
           ),
