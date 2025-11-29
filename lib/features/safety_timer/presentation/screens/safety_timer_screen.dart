@@ -28,7 +28,7 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
   bool _saving = false;
   String? _activeTimerId;
 
-  bool _alarmCreated = false; // ⬅️ neu: damit Alarm nur einmal geschrieben wird
+  bool _alarmCreated = false; // Damit Alarm nur einmal geschrieben wird
 
   @override
   void initState() {
@@ -71,7 +71,9 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
     });
 
     try {
-      _remainingSeconds = _selectedMinutes * 60;
+      // Wenn 0 Minuten ausgewählt sind → Testmodus mit 10 Sekunden
+      _remainingSeconds =
+          _selectedMinutes == 0 ? 10 : _selectedMinutes * 60;
 
       // neues Timer-Dokument in Firestore
       final doc = _timersRef().doc();
@@ -104,10 +106,7 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
           SetOptions(merge: true),
         );
 
-        await inviteRef
-            .collection('timers')
-            .doc(_activeTimerId)
-            .set(data);
+        await inviteRef.collection('timers').doc(_activeTimerId).set(data);
       }
 
       // lokaler Timer
@@ -205,7 +204,7 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
     }
   }
 
-  /// ⬅️ NEU: Alarm-Datensatz in Firestore schreiben
+  /// Alarm-Datensatz in Firestore schreiben
   Future<void> _createAlarmRecord() async {
     if (_uid == null || _alarmCreated) return;
 
@@ -385,25 +384,49 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
-                children: [30, 60, 90, 120].map((m) {
-                  final isSelected = _selectedMinutes == m;
-                  return ChoiceChip(
-                    label: Text("$m Min"),
-                    selected: isSelected,
+                children: [
+                  // Test-Option: 10 Sekunden
+                  ChoiceChip(
+                    label: const Text("10 Sek (Test)"),
+                    selected: _selectedMinutes == 0,
                     onSelected: (_) {
                       setState(() {
-                        _selectedMinutes = m;
+                        _selectedMinutes = 0; // 0 Minuten = Testmodus
                       });
                     },
-                    selectedColor: Colors.pink,
+                    selectedColor: Colors.red,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
+                      color: _selectedMinutes == 0
+                          ? Colors.white
+                          : Colors.black87,
                     ),
-                  );
-                }).toList(),
+                  ),
+                  // Normale Optionen
+                  ...[30, 60, 90, 120].map((m) {
+                    final isSelected = _selectedMinutes == m;
+                    return ChoiceChip(
+                      label: Text("$m Min"),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(() {
+                          _selectedMinutes = m;
+                        });
+                      },
+                      selectedColor: Colors.pink,
+                      labelStyle: TextStyle(
+                        color:
+                            isSelected ? Colors.white : Colors.black87,
+                      ),
+                    );
+                  }).toList(),
+                ],
               ),
               const SizedBox(height: 20),
-              Text("Aktuelle Auswahl: $_selectedMinutes Minuten"),
+              Text(
+                _selectedMinutes == 0
+                    ? "Aktuelle Auswahl: 10 Sekunden (Test)"
+                    : "Aktuelle Auswahl: $_selectedMinutes Minuten",
+              ),
               const Spacer(),
               ElevatedButton.icon(
                 onPressed: _saving ? null : _startTimer,
@@ -460,7 +483,10 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
             ),
             const SizedBox(height: 16),
             LinearProgressIndicator(
-              value: _remainingSeconds / (_selectedMinutes * 60),
+              value: _remainingSeconds /
+                  (_selectedMinutes == 0
+                      ? 10
+                      : _selectedMinutes * 60),
             ),
             const Spacer(),
             ElevatedButton.icon(

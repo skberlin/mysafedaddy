@@ -29,6 +29,7 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const RoleSelectionScreen());
 
       case '/phone-auth':
+        // Rolle wird beim Aufruf mitgegeben, Default = 'woman'
         final role = settings.arguments as String? ?? 'woman';
         return MaterialPageRoute(
           builder: (_) => PhoneAuthScreen(role: role),
@@ -68,8 +69,8 @@ class AppRouter {
 
       case '/safety-timer':
         String? inviteId;
-        if (settings.arguments is Map) {
-          final args = settings.arguments as Map;
+        if (settings.arguments is Map<String, dynamic>) {
+          final args = settings.arguments as Map<String, dynamic>;
           inviteId = args['inviteId'] as String?;
         } else if (settings.arguments is String) {
           inviteId = settings.arguments as String;
@@ -78,6 +79,7 @@ class AppRouter {
           builder: (_) => SafetyTimerScreen(inviteId: inviteId),
         );
 
+      // explizite Variante ohne Invite-Verknüpfung (falls du sie mal brauchst)
       case '/safety-timer-plain':
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
 
@@ -92,9 +94,13 @@ class AppRouter {
           builder: (_) => const AlarmHistoryScreen(),
         );
 
+      // Host-Ansicht für Einladungen (Liste + Codes)
       case '/invitation':
-        return MaterialPageRoute(builder: (_) => const InvitationScreen());
+        return MaterialPageRoute(
+          builder: (_) => const InvitationScreen(),
+        );
 
+      // Demo: „Als Gast testen“ – erwartet eine String-InviteId
       case '/invite-guest':
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
@@ -113,10 +119,13 @@ class AppRouter {
           builder: (_) => IdVerificationScreen(inviteId: inviteId),
         );
 
+      // Fallback für unbekannte Routen
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
-            body: Center(child: Text('404 – Route nicht gefunden')),
+            body: Center(
+              child: Text('404 – Route nicht gefunden'),
+            ),
           ),
         );
     }

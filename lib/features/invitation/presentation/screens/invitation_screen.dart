@@ -17,6 +17,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
     super.initState();
     _uid = FirebaseAuth.instance.currentUser?.uid;
     if (_uid == null) {
+      // Wenn kein User -> zurück zum Splash
       Future.microtask(() {
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -41,9 +42,12 @@ class _InvitationScreenState extends State<InvitationScreen> {
   Future<void> _createInvite() async {
     if (_uid == null) return;
 
+    // globale Einladung
     final globalRef =
         FirebaseFirestore.instance.collection('invites').doc();
     final inviteId = globalRef.id;
+
+    final link = _buildLink(inviteId);
 
     final data = {
       'ownerUid': _uid,
@@ -55,6 +59,11 @@ class _InvitationScreenState extends State<InvitationScreen> {
       'idVerified': false,
       'badgeLevel': 0,
       'meetingStatus': 'none', // none | active | ended
+
+      // wichtig für Share-Button & Fallbacks
+      'code': inviteId,
+      'inviteCode': inviteId,
+      'inviteLink': link,
     };
 
     await globalRef.set(data);
@@ -176,10 +185,10 @@ class _InvitationScreenState extends State<InvitationScreen> {
 
               final guestFirstName = data['guestFirstName'];
               final guestLastName = data['guestLastName'];
-              final guestName = (guestFirstName != null &&
-                      guestFirstName.toString().isNotEmpty)
-                  ? "$guestFirstName ${guestLastName ?? ''}"
-                  : null;
+              final guestName =
+                  (guestFirstName != null && guestFirstName.toString().isNotEmpty)
+                      ? "$guestFirstName ${guestLastName ?? ''}"
+                      : null;
 
               final verifiedBasic = data['verifiedBasic'] == true;
               final selfiePresent = data['selfiePresent'] == true;
