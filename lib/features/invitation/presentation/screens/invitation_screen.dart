@@ -54,6 +54,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
       'selfieVerified': false,
       'idVerified': false,
       'badgeLevel': 0,
+      'meetingStatus': 'none', // none | active | ended
     };
 
     await globalRef.set(data);
@@ -77,29 +78,21 @@ class _InvitationScreenState extends State<InvitationScreen> {
         'revokedAt': FieldValue.serverTimestamp(),
       };
 
-      // globales Invite-Dokument aktualisieren
       await FirebaseFirestore.instance
           .collection('invites')
           .doc(inviteId)
           .set(update, SetOptions(merge: true));
 
-      // gespiegelt bei der Frau aktualisieren
-      await _invitesRef()
-          .doc(inviteId)
-          .set(update, SetOptions(merge: true));
+      await _invitesRef().doc(inviteId).set(update, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Einladung wurde zurückgezogen."),
-        ),
+        const SnackBar(content: Text("Einladung wurde zurückgezogen.")),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Fehler beim Zurückziehen: $e"),
-        ),
+        SnackBar(content: Text("Fehler beim Zurückziehen: $e")),
       );
     }
   }
@@ -178,6 +171,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
               final data = doc.data();
 
               final status = (data['status'] ?? 'open') as String;
+              final meetingStatus =
+                  (data['meetingStatus'] ?? 'none') as String;
+
               final guestFirstName = data['guestFirstName'];
               final guestLastName = data['guestLastName'];
               final guestName = (guestFirstName != null &&
@@ -201,6 +197,26 @@ class _InvitationScreenState extends State<InvitationScreen> {
                   break;
                 default:
                   statusColor = Colors.green;
+              }
+
+              String meetingText;
+              IconData meetingIcon;
+              Color meetingColor;
+              switch (meetingStatus) {
+                case 'active':
+                  meetingText = "Treffen: aktiv (GPS läuft)";
+                  meetingIcon = Icons.location_on;
+                  meetingColor = Colors.orange;
+                  break;
+                case 'ended':
+                  meetingText = "Treffen: sicher beendet";
+                  meetingIcon = Icons.lock;
+                  meetingColor = Colors.green;
+                  break;
+                default:
+                  meetingText = "Treffen: noch nicht gestartet";
+                  meetingIcon = Icons.location_disabled;
+                  meetingColor = Colors.grey;
               }
 
               return Container(
@@ -349,6 +365,24 @@ class _InvitationScreenState extends State<InvitationScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              meetingIcon,
+                              size: 20,
+                              color: meetingColor,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              meetingText,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: meetingColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
 
@@ -371,6 +405,28 @@ class _InvitationScreenState extends State<InvitationScreen> {
                               },
                               icon: const Icon(Icons.visibility),
                               label: const Text("Als Gast testen"),
+                            ),
+                          if (status != 'revoked' &&
+                              meetingStatus != 'ended' &&
+                              verifiedBasic)
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/meeting-tracking',
+                                  arguments: inviteId,
+                                );
+                              },
+                              icon: Icon(
+                                meetingStatus == 'active'
+                                    ? Icons.my_location
+                                    : Icons.play_circle_fill,
+                              ),
+                              label: Text(
+                                meetingStatus == 'active'
+                                    ? "Treffen öffnen"
+                                    : "Treffen starten",
+                              ),
                             ),
                           TextButton.icon(
                             onPressed: status == 'revoked'
