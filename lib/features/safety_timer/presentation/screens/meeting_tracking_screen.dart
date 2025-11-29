@@ -44,6 +44,7 @@ class _MeetingTrackingScreenState extends State<MeetingTrackingScreen> {
       if (!_permissionDenied) {
         await _startMeetingIfNeeded();
         await _updateLocation();
+        await _autoStartTimerIfNeeded(); // ⬅️ Auto-Timer-Start
       }
     } finally {
       if (mounted) {
@@ -160,6 +161,68 @@ class _MeetingTrackingScreenState extends State<MeetingTrackingScreen> {
     }
   }
 
+  /// Startet automatisch einen Sicherheitstimer (30 Min),
+  /// wenn für dieses Treffen noch kein aktiver Timer existiert.
+  Future<void> _autoStartTimerIfNeeded() async {
+    if (_uid == null) return;
+
+    const defaultMinutes = 30;
+
+    final inviteRef =
+        FirebaseFirestore.instance.collection('invites').doc(widget.inviteId);
+    final inviteSnap = await inviteRef.get();
+
+    if (!inviteSnap.exists) return;
+
+    final inviteData = inviteSnap.data()!;
+    final existingTimerId = inviteData['activeTimerId'] as String?;
+
+    // Wenn bereits ein Timer verknüpft ist, nichts tun
+    if (existingTimerId != null && existingTimerId.isNotEmpty) return;
+
+    final userTimersRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .collection('safety_timers');
+
+    final timerDoc = userTimersRef.doc();
+    final timerId = timerDoc.id;
+    final totalSeconds = defaultMinutes * 60;
+
+    final timerData = {
+      'userUid': _uid,
+      'inviteId': widget.inviteId,
+      'status': 'running', // running | completed | expired | cancelled
+      'durationMinutes': defaultMinutes,
+      'remainingSeconds': totalSeconds,
+      'startedAt': FieldValue.serverTimestamp(),
+      'extensions': 0,
+      'autoStarted': true,
+    };
+
+    // Beim Nutzer speichern
+    await timerDoc.set(timerData);
+
+    // Beim Invite referenzieren + in Unterkollektion speichern
+    await inviteRef.set({
+      'activeTimerId': timerId,
+      'lastTimerStartedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await inviteRef.collection('timers').doc(timerId).set(timerData);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Sicherheitstimer wurde automatisch auf 30 Minuten gestartet.",
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _endMeeting() async {
     final confirm = await showDialog<bool>(
           context: context,
@@ -273,7 +336,8 @@ class _MeetingTrackingScreenState extends State<MeetingTrackingScreen> {
             const Text(
               "Während des Treffens wird deine Position in regelmäßigen "
               "Abständen gespeichert. Im Alarmfall können so Notfallkontakte "
-              "informiert werden.",
+              "informiert werden.\n\n"
+              "Für dieses Treffen wurde automatisch ein Sicherheitstimer gestartet.",
             ),
             const SizedBox(height: 24),
             Container(
