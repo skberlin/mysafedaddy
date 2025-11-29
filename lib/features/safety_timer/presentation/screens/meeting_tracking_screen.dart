@@ -329,7 +329,11 @@ class _MeetingTrackingScreenState extends State<MeetingTrackingScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () {
-                Navigator.pushNamed(context, '/safety-timer');
+                Navigator.pushNamed(
+                  context,
+                  '/safety-timer',
+                  arguments: {'inviteId': widget.inviteId},
+                );
               },
               icon: const Icon(Icons.timer),
               style: OutlinedButton.styleFrom(

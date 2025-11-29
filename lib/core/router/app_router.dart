@@ -66,7 +66,26 @@ class AppRouter {
         );
 
       case '/safety-timer':
+        String? inviteId;
+        if (settings.arguments is Map) {
+          final args = settings.arguments as Map;
+          inviteId = args['inviteId'] as String?;
+        } else if (settings.arguments is String) {
+          inviteId = settings.arguments as String;
+        }
+        return MaterialPageRoute(
+          builder: (_) => SafetyTimerScreen(inviteId: inviteId),
+        );
+
+      case '/safety-timer-plain':
+        // optional: falls du irgendwo einen "losen" Timer ohne Meeting brauchst
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
+
+      case '/meeting-tracking':
+        final inviteId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => MeetingTrackingScreen(inviteId: inviteId),
+        );
 
       case '/invitation':
         return MaterialPageRoute(builder: (_) => const InvitationScreen());
@@ -87,12 +106,6 @@ class AppRouter {
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
           builder: (_) => IdVerificationScreen(inviteId: inviteId),
-        );
-
-      case '/meeting-tracking':
-        final inviteId = settings.arguments as String;
-        return MaterialPageRoute(
-          builder: (_) => MeetingTrackingScreen(inviteId: inviteId),
         );
 
       default:

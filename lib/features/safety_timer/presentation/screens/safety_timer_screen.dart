@@ -5,155 +5,345 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class SafetyTimerScreen extends StatefulWidget {
-  const SafetyTimerScreen({Key? key}) : super(key: key);
+  /// Wenn der Timer aus einem Treffen heraus geöffnet wird,
+  /// ist hier die inviteId des Treffens gesetzt.
+  final String? inviteId;
+
+  const SafetyTimerScreen({
+    Key? key,
+    this.inviteId,
+  }) : super(key: key);
 
   @override
   State<SafetyTimerScreen> createState() => _SafetyTimerScreenState();
 }
 
 class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
-  int _selectedMinutes = 60; // Standard: 60 Minuten
-  bool _isRunning = false;
-  int _remainingSeconds = 0;
-  Timer? _timer;
-  String? _sessionId;
+  String? _uid;
 
-  int get _totalSeconds => _selectedMinutes * 60;
+  int _selectedMinutes = 30;
+  int _remainingSeconds = 0;
+  Timer? _ticker;
+  bool _running = false;
+  bool _saving = false;
+  String? _activeTimerId;
+
+  @override
+  void initState() {
+    super.initState();
+    _uid = FirebaseAuth.instance.currentUser?.uid;
+    if (_uid == null) {
+      Future.microtask(() {
+        Navigator.pushNamedAndRemoveUntil(context, '/splash', (_) => false);
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _ticker?.cancel();
     super.dispose();
   }
 
+  CollectionReference<Map<String, dynamic>> _timersRef() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(_uid)
+        .collection('safety_timers');
+  }
+
+  String _formatDuration(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    final m = minutes.toString().padLeft(2, '0');
+    final s = seconds.toString().padLeft(2, '0');
+    return "$m:$s";
+  }
+
   Future<void> _startTimer() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Kein angemeldeter Benutzer gefunden.")),
-      );
-      return;
-    }
+    if (_uid == null) return;
 
     setState(() {
-      _isRunning = true;
-      _remainingSeconds = _totalSeconds;
+      _saving = true;
     });
 
-    // Firestore-Dokument für die Sitzung anlegen
-    final docRef = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('safetySessions')
-        .add({
-      'startedAt': FieldValue.serverTimestamp(),
-      'durationMinutes': _selectedMinutes,
-      'status': 'running', // running / ended_ok / timeout
-      'lastCheckInAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      _remainingSeconds = _selectedMinutes * 60;
 
-    _sessionId = docRef.id;
+      // neues Timer-Dokument in Firestore
+      final doc = _timersRef().doc();
+      _activeTimerId = doc.id;
 
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() {
-        _remainingSeconds--;
+      final data = {
+        'userUid': _uid,
+        'inviteId': widget.inviteId,
+        'status': 'running', // running | completed | expired | cancelled
+        'durationMinutes': _selectedMinutes,
+        'remainingSeconds': _remainingSeconds,
+        'startedAt': FieldValue.serverTimestamp(),
+        'extensions': 0,
+      };
+
+      await doc.set(data);
+
+      // wenn mit Treffen verknüpft: Referenz unter invite speichern
+      if (widget.inviteId != null) {
+        final inviteRef = FirebaseFirestore.instance
+            .collection('invites')
+            .doc(widget.inviteId);
+
+        await inviteRef.set(
+          {
+            'activeTimerId': _activeTimerId,
+            'lastTimerStartedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+
+        await inviteRef
+            .collection('timers')
+            .doc(_activeTimerId)
+            .set(data);
+      }
+
+      // lokaler Timer
+      _ticker?.cancel();
+      _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() {
+          if (_remainingSeconds > 0) {
+            _remainingSeconds--;
+          } else {
+            _ticker?.cancel();
+            _running = false;
+          }
+        });
+
+        if (_remainingSeconds <= 0) {
+          _onTimerExpired();
+        }
       });
 
-      if (_remainingSeconds <= 0) {
-        _timer?.cancel();
-        _onTimerTimeout();
+      setState(() {
+        _running = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Fehler beim Starten des Timers: $e")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
       }
-    });
-  }
-
-  Future<void> _onTimerTimeout() async {
-    setState(() {
-      _isRunning = false;
-      _remainingSeconds = 0;
-    });
-
-    await _updateSessionStatus('timeout');
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Timer abgelaufen"),
-        content: const Text(
-          "Dein Sicherheitstimer ist abgelaufen.\n"
-          "In der finalen Version würden jetzt deine Notfallkontakte benachrichtigt werden.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateSessionStatus(String status) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _sessionId == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('safetySessions')
-        .doc(_sessionId)
-        .set({
-      'status': status,
-      'lastCheckInAt': FieldValue.serverTimestamp(),
-      if (status != 'running') 'endedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    }
   }
 
   Future<void> _extendTimer() async {
-    if (!_isRunning) return;
+    if (!_running || _activeTimerId == null) return;
 
     setState(() {
-      _remainingSeconds += _totalSeconds; // gleiche Zeit nochmal
+      _remainingSeconds += _selectedMinutes * 60;
     });
 
-    await _updateSessionStatus('running');
+    try {
+      await _timersRef().doc(_activeTimerId).update({
+        'remainingSeconds': _remainingSeconds,
+        'extensions': FieldValue.increment(1),
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Timer verlängert. Wir fragen später erneut nach."),
-      ),
-    );
+      if (widget.inviteId != null) {
+        final inviteRef = FirebaseFirestore.instance
+            .collection('invites')
+            .doc(widget.inviteId);
+        await inviteRef
+            .collection('timers')
+            .doc(_activeTimerId)
+            .update({'remainingSeconds': _remainingSeconds});
+      }
+    } catch (e) {
+      // nur loggen, kein hartes Abbrechen
+      debugPrint("Fehler beim Verlängern des Timers: $e");
+    }
   }
 
-  Future<void> _endMeetingSafely() async {
-    _timer?.cancel();
+  Future<void> _markCompleted({bool safe = true}) async {
+    _ticker?.cancel();
     setState(() {
-      _isRunning = false;
-      _remainingSeconds = 0;
+      _running = false;
     });
 
-    await _updateSessionStatus('ended_ok');
+    if (_activeTimerId == null) return;
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Treffen als sicher beendet markiert.")),
-    );
+    final update = {
+      'status': safe ? 'completed' : 'cancelled',
+      'completedAt': FieldValue.serverTimestamp(),
+    };
 
-    Navigator.pop(context); // zurück zum HomeScreen
+    try {
+      await _timersRef().doc(_activeTimerId).set(update, SetOptions(merge: true));
+
+      if (widget.inviteId != null) {
+        final inviteRef = FirebaseFirestore.instance
+            .collection('invites')
+            .doc(widget.inviteId);
+
+        await inviteRef
+            .collection('timers')
+            .doc(_activeTimerId)
+            .set(update, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint("Fehler beim Abschließen des Timers: $e");
+    }
   }
 
-  String _formatTime(int totalSeconds) {
-    final m = totalSeconds ~/ 60;
-    final s = totalSeconds % 60;
-    final mm = m.toString().padLeft(2, '0');
-    final ss = s.toString().padLeft(2, '0');
-    return "$mm:$ss";
+  Future<void> _onTimerExpired() async {
+    if (_activeTimerId == null) return;
+
+    final update = {
+      'status': 'expired',
+      'expiredAt': FieldValue.serverTimestamp(),
+    };
+
+    try {
+      await _timersRef().doc(_activeTimerId).set(update, SetOptions(merge: true));
+
+      if (widget.inviteId != null) {
+        final inviteRef = FirebaseFirestore.instance
+            .collection('invites')
+            .doc(widget.inviteId);
+
+        await inviteRef
+            .collection('timers')
+            .doc(_activeTimerId)
+            .set(update, SetOptions(merge: true));
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Timer abgelaufen"),
+          content: const Text(
+            "Der Sicherheitstimer ist abgelaufen.\n\n"
+            "In der finalen Version würden jetzt deine Notfallkontakte "
+            "automatisch per SMS/E-Mail informiert und der letzte Standort "
+            "übermittelt.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint("Fehler beim Markieren als abgelaufen: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_uid == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_running) {
+      // Auswahl-Ansicht
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text("Sicherheitstimer"),
+          backgroundColor: Colors.pink,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Timer für dein Treffen einstellen",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Während des Treffens läuft ein Timer. "
+                "Wenn du dich nicht rechtzeitig meldest, "
+                "werden deine Notfallkontakte informiert "
+                "(in dieser Version noch als Vorbereitung).",
+              ),
+              const SizedBox(height: 24),
+              if (widget.inviteId != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "Dieser Timer ist mit dem Treffen-Code verknüpft:\n${widget.inviteId}",
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              const Text(
+                "Dauer auswählen:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                children: [30, 60, 90, 120].map((m) {
+                  final isSelected = _selectedMinutes == m;
+                  return ChoiceChip(
+                    label: Text("$m Min"),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedMinutes = m;
+                      });
+                    },
+                    selectedColor: Colors.pink,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              Text("Aktuelle Auswahl: $_selectedMinutes Minuten"),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: _saving ? null : _startTimer,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.play_arrow),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.pink,
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                label: Text(_saving ? "Starte..." : "Timer starten"),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Laufende Timer-Ansicht
     return Scaffold(
       appBar: AppBar(
         title: const Text("Sicherheitstimer"),
@@ -161,152 +351,56 @@ class _SafetyTimerScreenState extends State<SafetyTimerScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: _isRunning ? _buildRunningView() : _buildSetupView(),
-      ),
-    );
-  }
-
-  Widget _buildSetupView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Timer für dein Treffen einstellen",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          "Während des Treffens läuft ein Timer. "
-          "Wenn du dich nicht rechtzeitig meldest, werden deine Notfallkontakte informiert "
-          "(in dieser Version nur als Vorbereitung).",
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          "Dauer auswählen:",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _DurationChip(
-              minutes: 30,
-              selectedMinutes: _selectedMinutes,
-              onSelected: () => setState(() => _selectedMinutes = 30),
+            const Text(
+              "Timer läuft",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            _DurationChip(
-              minutes: 60,
-              selectedMinutes: _selectedMinutes,
-              onSelected: () => setState(() => _selectedMinutes = 60),
+            const SizedBox(height: 8),
+            const Text(
+              "Wir erinnern dich rechtzeitig daran, zu bestätigen, "
+              "dass alles in Ordnung ist.",
+              textAlign: TextAlign.center,
             ),
-            _DurationChip(
-              minutes: 90,
-              selectedMinutes: _selectedMinutes,
-              onSelected: () => setState(() => _selectedMinutes = 90),
+            const SizedBox(height: 32),
+            Text(
+              _formatDuration(_remainingSeconds),
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            _DurationChip(
-              minutes: 120,
-              selectedMinutes: _selectedMinutes,
-              onSelected: () => setState(() => _selectedMinutes = 120),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _remainingSeconds / (_selectedMinutes * 60),
+            ),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: _extendTimer,
+              icon: const Icon(Icons.check),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              label: const Text("Alles ok, Timer verlängern"),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await _markCompleted(safe: true);
+                if (mounted) Navigator.pop(context);
+              },
+              icon: const Icon(Icons.lock),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              label: const Text("Treffen sicher beendet"),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        Text(
-          "Aktuelle Auswahl: $_selectedMinutes Minuten",
-          style: const TextStyle(fontSize: 16),
-        ),
-        const Spacer(),
-        ElevatedButton.icon(
-          onPressed: _startTimer,
-          icon: const Icon(Icons.play_arrow),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pink,
-            minimumSize: const Size(double.infinity, 50),
-          ),
-          label: const Text("Timer starten"),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRunningView() {
-    final progress =
-        _totalSeconds == 0 ? 0.0 : _remainingSeconds / _totalSeconds.toDouble();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const Text(
-          "Timer läuft",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          "Wir erinnern dich rechtzeitig daran, zu bestätigen, "
-          "dass alles in Ordnung ist.",
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        Center(
-          child: Text(
-            _formatTime(_remainingSeconds),
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        LinearProgressIndicator(
-          value: progress.clamp(0.0, 1.0),
-          minHeight: 8,
-        ),
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: _extendTimer,
-          icon: const Icon(Icons.check),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            minimumSize: const Size(double.infinity, 50),
-          ),
-          label: const Text("Alles ok, Timer verlängern"),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: _endMeetingSafely,
-          icon: const Icon(Icons.lock_open),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
-          ),
-          label: const Text("Treffen sicher beendet"),
-        ),
-      ],
-    );
-  }
-}
-
-class _DurationChip extends StatelessWidget {
-  final int minutes;
-  final int selectedMinutes;
-  final VoidCallback onSelected;
-
-  const _DurationChip({
-    Key? key,
-    required this.minutes,
-    required this.selectedMinutes,
-    required this.onSelected,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = minutes == selectedMinutes;
-
-    return ChoiceChip(
-      label: Text("$minutes Min"),
-      selected: selected,
-      selectedColor: Colors.pink.shade100,
-      onSelected: (_) => onSelected(),
+      ),
     );
   }
 }
