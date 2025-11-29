@@ -70,9 +70,7 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
       if (!snap.exists) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Einladung existiert nicht mehr."),
-          ),
+          const SnackBar(content: Text("Einladung existiert nicht mehr.")),
         );
         return;
       }
@@ -89,10 +87,8 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
         'verifiedAt': FieldValue.serverTimestamp(),
       };
 
-      // global speichern
       await _inviteRef.set(updateData, SetOptions(merge: true));
 
-      // spiegeln bei der Frau
       if (ownerUid != null) {
         await FirebaseFirestore.instance
             .collection('users')
@@ -110,8 +106,8 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
           title: const Text("Vielen Dank"),
           content: const Text(
             "Deine Basisdaten wurden übermittelt.\n"
-            "Als nächstes kannst du ein Selfie aufnehmen, "
-            "damit die Frau weiß, wer du bist.",
+            "Optional kannst du jetzt noch ein Selfie und einen Ausweis-Check "
+            "durchführen, um das Vertrauen zu erhöhen.",
           ),
           actions: [
             TextButton(
@@ -124,9 +120,7 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Fehler beim Speichern der Daten: $e"),
-        ),
+        SnackBar(content: Text("Fehler beim Speichern der Daten: $e")),
       );
     }
   }
@@ -186,8 +180,8 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                "Bitte gib deine Basisdaten ein, damit die Frau weiß, "
-                "wer du bist.",
+                "Bitte gib deine Basisdaten ein. Danach kannst du optional "
+                "Selfie und Ausweis prüfen lassen.",
               ),
               const SizedBox(height: 24),
 
@@ -224,12 +218,11 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                   backgroundColor: Colors.pink,
                   minimumSize: const Size(double.infinity, 50),
                 ),
-                child: const Text("Daten übermitteln"),
+                child: const Text("Basisdaten übermitteln"),
               ),
 
               const SizedBox(height: 24),
 
-              // ---------- SELFIE BUTTON ----------
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pushNamed(
@@ -243,6 +236,23 @@ class _GuestInviteScreenState extends State<GuestInviteScreen> {
                   minimumSize: const Size(double.infinity, 50),
                 ),
                 label: const Text("Selfie aufnehmen"),
+              ),
+
+              const SizedBox(height: 12),
+
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/id-verification',
+                    arguments: widget.inviteId,
+                  );
+                },
+                icon: const Icon(Icons.badge),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                label: const Text("Ausweis-Check (Demo-KI)"),
               ),
             ],
           ),

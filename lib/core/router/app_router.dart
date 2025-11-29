@@ -12,6 +12,7 @@ import '../../features/safety_timer/presentation/screens/safety_timer_screen.dar
 import '../../features/invitation/presentation/screens/invitation_screen.dart';
 import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
 import '../../features/identification/presentation/screens/selfie_capture_screen.dart';
+import '../../features/identification/presentation/screens/id_verification_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -59,7 +60,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const HomeScreen());
 
       case '/emergency-contacts':
-        return MaterialPageRoute(builder: (_) => const EmergencyContactsScreen());
+        return MaterialPageRoute(
+            builder: (_) => const EmergencyContactsScreen());
 
       case '/safety-timer':
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
@@ -77,6 +79,12 @@ class AppRouter {
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
           builder: (_) => SelfieCaptureScreen(inviteId: inviteId),
+        );
+
+      case '/id-verification':
+        final inviteId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => IdVerificationScreen(inviteId: inviteId),
         );
 
       default:

@@ -43,7 +43,6 @@ class _InvitationScreenState extends State<InvitationScreen> {
 
     final globalRef =
         FirebaseFirestore.instance.collection('invites').doc();
-
     final inviteId = globalRef.id;
 
     final data = {
@@ -51,7 +50,10 @@ class _InvitationScreenState extends State<InvitationScreen> {
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'open',
       'verifiedBasic': false,
+      'selfiePresent': false,
       'selfieVerified': false,
+      'idVerified': false,
+      'badgeLevel': 0,
     };
 
     await globalRef.set(data);
@@ -59,7 +61,6 @@ class _InvitationScreenState extends State<InvitationScreen> {
     await _invitesRef().doc(inviteId).set(data);
 
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("Einladung erstellt: $inviteId"),
@@ -102,7 +103,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.only(bottom: 100),
+            padding: const EdgeInsets.only(bottom: 100, top: 8),
             itemCount: docs.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -113,14 +114,16 @@ class _InvitationScreenState extends State<InvitationScreen> {
               final status = data['status'] ?? 'open';
               final guestFirstName = data['guestFirstName'];
               final guestLastName = data['guestLastName'];
-
               final guestName = (guestFirstName != null &&
                       guestFirstName.toString().isNotEmpty)
                   ? "$guestFirstName ${guestLastName ?? ''}"
                   : null;
 
               final verifiedBasic = data['verifiedBasic'] == true;
+              final selfiePresent = data['selfiePresent'] == true;
               final selfieVerified = data['selfieVerified'] == true;
+              final idVerified = data['idVerified'] == true;
+              final badgeLevel = (data['badgeLevel'] ?? 0) as int;
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -132,18 +135,26 @@ class _InvitationScreenState extends State<InvitationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Einladungscode:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Einladungscode:",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
                     const SizedBox(height: 4),
                     SelectableText(inviteId),
 
                     const SizedBox(height: 8),
-                    const Text("Link:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Link:",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
                     SelectableText(
                       _buildLink(inviteId),
-                      style:
-                          const TextStyle(color: Colors.blueAccent, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.blueAccent,
+                        fontSize: 13,
+                      ),
                     ),
 
                     const SizedBox(height: 8),
@@ -158,11 +169,15 @@ class _InvitationScreenState extends State<InvitationScreen> {
                               Text("Gast: $guestName"),
                             ],
                           )
-                        : const Text("Gast hat Daten noch nicht ausgefüllt."),
+                        : const Text(
+                            "Gast hat Daten noch nicht ausgefüllt.",
+                            style:
+                                TextStyle(fontSize: 13, color: Colors.grey),
+                          ),
 
                     const SizedBox(height: 8),
 
-                    // ---------- STATUS BLOCK ----------
+                    // ---------- STATUS / BADGE ----------
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -182,8 +197,10 @@ class _InvitationScreenState extends State<InvitationScreen> {
                                   ? "Ident-Status: Basisdaten bestätigt"
                                   : "Ident-Status: noch offen",
                               style: TextStyle(
-                                color:
-                                    verifiedBasic ? Colors.green : Colors.grey,
+                                color: verifiedBasic
+                                    ? Colors.green
+                                    : Colors.grey,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -192,23 +209,58 @@ class _InvitationScreenState extends State<InvitationScreen> {
                         Row(
                           children: [
                             Icon(
-                              selfieVerified
+                              selfieVerified || selfiePresent
                                   ? Icons.face_retouching_natural
                                   : Icons.face,
-                              color:
-                                  selfieVerified ? Colors.green : Colors.grey,
+                              color: (selfieVerified || selfiePresent)
+                                  ? Colors.green
+                                  : Colors.grey,
                               size: 20,
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              selfieVerified
+                              (selfieVerified || selfiePresent)
                                   ? "Selfie: vorhanden"
                                   : "Selfie: noch ausstehend",
                               style: TextStyle(
-                                color: selfieVerified
+                                color: (selfieVerified || selfiePresent)
                                     ? Colors.green
                                     : Colors.grey,
+                                fontSize: 13,
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              idVerified ? Icons.badge : Icons.badge_outlined,
+                              color:
+                                  idVerified ? Colors.green : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              idVerified
+                                  ? "Ausweis-Check: bestätigt"
+                                  : "Ausweis-Check: noch offen",
+                              style: TextStyle(
+                                color:
+                                    idVerified ? Colors.green : Colors.grey,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.shield, size: 20),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Trust-Level: $badgeLevel / 3",
+                              style: const TextStyle(fontSize: 13),
                             ),
                           ],
                         ),
