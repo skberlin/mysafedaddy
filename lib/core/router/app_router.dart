@@ -17,6 +17,11 @@ import '../../features/identification/presentation/screens/selfie_capture_screen
 import '../../features/identification/presentation/screens/id_verification_screen.dart';
 import '../../features/premium_version/presentation/screens/premium_screen.dart';
 
+import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/legal/presentation/screens/imprint_screen.dart';
+import '../../features/legal/presentation/screens/legal_terms_screen.dart';
+import '../../features/legal/presentation/screens/privacy_policy_screen.dart';
+
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -34,7 +39,18 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => PhoneAuthScreen(role: role),
         );
+       case '/settings':
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
+      case '/legal-terms':
+        return MaterialPageRoute(builder: (_) => const LegalTermsScreen());
+
+      case '/privacy-policy':
+        return MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen());
+
+      case '/imprint':
+        return MaterialPageRoute(builder: (_) => const ImprintScreen());
+        
       case '/verify-code':
         final args = settings.arguments as Map<String, dynamic>;
         final phoneNumber = args['phoneNumber'] as String;
@@ -106,6 +122,11 @@ class AppRouter {
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
           builder: (_) => SelfieCaptureScreen(inviteId: inviteId),
+        );
+
+      case '/settings':
+        return MaterialPageRoute(
+          builder: (_) => const SettingsScreen(),
         );
 
       case '/id-verification':

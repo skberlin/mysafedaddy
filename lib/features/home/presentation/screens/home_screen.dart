@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ⬇️ neu: direkter Import des Einladungs-Screens
+// Direkter Import des Einladungs-Screens
 import 'package:mysafedaddy/features/invitation/presentation/screens/invitation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +21,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _loadingProfile = true;
   bool _sharingInvite = false;
+
+  // ⬇️ Neu: Premium-Status
+  bool _premiumActive = false;
+  String? _premiumPlan;
+  DateTime? _premiumExpiresAt;
 
   @override
   void initState() {
@@ -47,10 +52,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (doc.exists) {
         final data = doc.data()!;
-        setState(() {
-          _firstName = data['firstName'] as String?;
-          _lastName = data['lastName'] as String?;
-        });
+
+        // Basisdaten
+        _firstName = data['firstName'] as String?;
+        _lastName = data['lastName'] as String?;
+
+        // Premium-Map: premium: { active, plan, expiresAt }
+        final premium = data['premium'];
+        if (premium is Map<String, dynamic>) {
+          _premiumActive = premium['active'] == true;
+          _premiumPlan = premium['plan']?.toString();
+
+          final expiresTs = premium['expiresAt'];
+          if (expiresTs is Timestamp) {
+            _premiumExpiresAt = expiresTs.toDate();
+          } else {
+            _premiumExpiresAt = null;
+          }
+        } else {
+          _premiumActive = false;
+          _premiumPlan = null;
+          _premiumExpiresAt = null;
+        }
       }
     } catch (e) {
       // Nur loggen, UI bleibt nutzbar
@@ -174,35 +197,40 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final displayName = _buildDisplayName();
 
+    // Text für die Premium-Karte im Menü
+    final premiumSubtitle = _premiumActive
+        ? "Premium aktiv – SMS-Alarm & Extras"
+        : "Unbegrenzte Kontakte & SMS-Alarm (später)";
+
     return Scaffold(
       appBar: AppBar(
-  backgroundColor: Colors.pink,
-  title: const Text("MySafeDaddy"),
-  actions: [
-    IconButton(
-      tooltip:
-          "Letzten Einladungslink teilen (Demo: kopiert in Zwischenablage)",
-      onPressed: _sharingInvite ? null : _shareLatestInvite,
-      icon: _sharingInvite
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.share),
-    ),
-    IconButton(
-      tooltip: "Einstellungen",
-      onPressed: () {
-        Navigator.pushNamed(context, '/settings');
-      },
-      icon: const Icon(Icons.settings),
-    ),
-  ],
-),
+        backgroundColor: Colors.pink,
+        title: const Text("MySafeDaddy"),
+        actions: [
+          IconButton(
+            tooltip:
+                "Letzten Einladungslink teilen (Demo: kopiert in Zwischenablage)",
+            onPressed: _sharingInvite ? null : _shareLatestInvite,
+            icon: _sharingInvite
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.share),
+          ),
+          IconButton(
+            tooltip: "Einstellungen",
+            onPressed: () {
+              Navigator.pushNamed(context, '/settings');
+            },
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _loadingProfile
@@ -220,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      // Rolle
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -235,6 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
+
+                      // Telefonnummer
                       if (_phoneNumber != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -248,6 +279,38 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(
                             _phoneNumber!,
                             style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+
+                      const SizedBox(width: 8),
+
+                      // ⬇️ Neu: Premium-Badge
+                      if (_premiumActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.orange,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "Premium",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],
@@ -268,13 +331,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.pushNamed(context, '/safety-timer');
                     },
                   ),
-
                   _HomeActionCard(
                     icon: Icons.person_add,
                     title: "Mann einladen",
                     subtitle: "Einladungslink & Ident-Check vorbereiten",
                     onTap: () {
-                      // ⬇️ zurück zur funktionierenden Variante:
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -283,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-
                   _HomeActionCard(
                     icon: Icons.group,
                     title: "Notfallkontakte",
@@ -304,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _HomeActionCard(
                     icon: Icons.star,
                     title: "Premium",
-                    subtitle: "Unbegrenzte Kontakte & SMS-Alarm",
+                    subtitle: premiumSubtitle,
                     onTap: () {
                       Navigator.pushNamed(context, '/premium');
                     },

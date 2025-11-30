@@ -1,22 +1,53 @@
 import 'package:flutter/material.dart';
+import '../../../premium_version/data/premium_service.dart';
 
-class PremiumScreen extends StatelessWidget {
+class PremiumScreen extends StatefulWidget {
   const PremiumScreen({Key? key}) : super(key: key);
 
-  void _showDemoInfo(BuildContext context) {
+  @override
+  State<PremiumScreen> createState() => _PremiumScreenState();
+}
+
+class _PremiumScreenState extends State<PremiumScreen> {
+  final _service = PremiumService();
+
+  bool _loading = true;
+  bool _active = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+
+  Future<void> _loadStatus() async {
+    final status = await _service.getPremiumStatus();
+    setState(() {
+      _active = status["active"] == true;
+      _loading = false;
+    });
+  }
+
+  Future<void> _activatePremium() async {
+    await _service.activatePremiumDemo();
+    await _loadStatus();
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          "Premium ist in dieser Demo-Version noch nicht aktiv.\n"
-          "Später werden hier Abo-Modelle und echte Zahlungen integriert.",
-        ),
-        duration: Duration(seconds: 4),
+        content: Text("Premium aktiviert (Demo)."),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Premium"),
@@ -27,196 +58,126 @@ class PremiumScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Mehr Sicherheit mit MySafeDaddy Premium",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "In der finalen Version kannst du mit Premium zusätzliche "
-              "Sicherheitsfunktionen freischalten – z. B. unbegrenzte "
-              "Notfallkontakte, SMS-Benachrichtigungen und erweiterte "
-              "Ident-Prüfungen.",
-            ),
-            const SizedBox(height: 24),
-
-            // Features-Card
-            Card(
-              shape: RoundedRectangleBorder(
+            // Premium Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.pink.shade50,
                 borderRadius: BorderRadius.circular(16),
               ),
-              elevation: 0,
-              color: Colors.pink.shade50,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Was Premium bringen soll",
-                      style: TextStyle(
-                        fontSize: 16,
+              child: Row(
+                children: [
+                  Icon(Icons.star, color: Colors.pink.shade300, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _active
+                          ? "Dein Premium ist aktiv"
+                          : "Premium freischalten",
+                      style: const TextStyle(
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 12),
-                    _PremiumFeatureRow(
-                      icon: Icons.group,
-                      title: "Unbegrenzte Notfallkontakte",
-                      subtitle:
-                          "Hinterlege mehrere Vertrauenspersonen für SMS/E-Mail-Alarm.",
-                    ),
-                    SizedBox(height: 8),
-                    _PremiumFeatureRow(
-                      icon: Icons.sms,
-                      title: "Automatische SMS-Alarmierung",
-                      subtitle:
-                          "Bei ausgelöstem Alarm werden deine Kontakte automatisch informiert "
-                          "(in der Demo noch deaktiviert).",
-                    ),
-                    SizedBox(height: 8),
-                    _PremiumFeatureRow(
-                      icon: Icons.verified_user,
-                      title: "Erweiterte Ident-Prüfung",
-                      subtitle:
-                          "Strengere Prüfung von Selfies und Ausweisen, um Fake-Profile zu erschweren.",
-                    ),
-                    SizedBox(height: 8),
-                    _PremiumFeatureRow(
-                      icon: Icons.support_agent,
-                      title: "Priorisierter Support",
-                      subtitle:
-                          "Schnellere Hilfe bei Sicherheitsfragen und technischen Problemen.",
-                    ),
-                  ],
-                ),
+                  )
+                ],
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // Preis-/Demo-Bereich
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            const Text(
+              "Vorteile von Premium",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+
+            _benefit(Icons.sms, "SMS-Notfallkontakte freigeschaltet"),
+            _benefit(Icons.location_on, "Live-Treffen-Tracking ohne Limit"),
+            _benefit(Icons.person_add_alt, "Unbegrenzte Einladungen"),
+            _benefit(Icons.verified_user, "Schnellere Ident-Verifikation"),
+            _benefit(Icons.shield, "Premium-Sicherheitslevel"),
+
+            const SizedBox(height: 30),
+
+            // PREIS (Demo)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
               ),
-              elevation: 0,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Geplantes Modell (Beispiel)",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "• Monatliches Abo (z. B. 4,99 €)\n"
-                      "• Jederzeit kündbar\n"
-                      "• Abrechnung über App Store / Play Store oder PayPal\n\n"
-                      "Hinweis: Die Preise sind Platzhalter – für die finale "
-                      "Version werden sie noch festgelegt.",
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _showDemoInfo(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: const Text("Premium testen (Demo-Hinweis)"),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: const Text("Später entscheiden"),
-                    ),
-                  ],
-                ),
+              child: Row(
+                children: [
+                  const Icon(Icons.payment, size: 28),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text("Premium (Demo)", style: TextStyle(fontSize: 16)),
+                      Text(
+                        "Später Abo-Modell: z. B. 4,99€/Monat",
+                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                      )
+                    ],
+                  )
+                ],
               ),
             ),
 
-            const SizedBox(height: 24),
-            const Text(
-              "Wichtig: Sicherheit zuerst",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+            const SizedBox(height: 30),
+
+            if (!_active)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _activatePremium,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.pink,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    "Premium aktivieren (Demo)",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "Auch ohne Premium solltest du dein Treffen immer mit dem "
-              "Sicherheitstimer und einem vertrauenswürdigen Notfallkontakt "
-              "absichern. Premium soll diese Funktionen nur erweitern – "
-              "nicht ersetzen.",
-              style: TextStyle(fontSize: 13),
-            ),
+
+            if (_active)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: null,
+                  style: ElevatedButton.styleFrom(
+                    disabledBackgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  icon: const Icon(Icons.check),
+                  label: const Text("Premium aktiv"),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
-}
 
-class _PremiumFeatureRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _PremiumFeatureRow({
-    Key? key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 22, color: Colors.pink),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12.5, color: Colors.black87),
-              ),
-            ],
+  Widget _benefit(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.pink.shade300),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
