@@ -15,10 +15,7 @@ import '../../features/invitation/presentation/screens/invitation_screen.dart';
 import '../../features/invitation/presentation/screens/guest_invite_screen.dart';
 import '../../features/identification/presentation/screens/selfie_capture_screen.dart';
 import '../../features/identification/presentation/screens/id_verification_screen.dart';
-import '../../features/settings/presentation/screens/settings_screen.dart';
-import '../../features/legal/presentation/screens/legal_terms_screen.dart';
-import '../../features/legal/presentation/screens/privacy_policy_screen.dart';
-import '../../features/legal/presentation/screens/imprint_screen.dart';
+import '../../features/premium_version/presentation/screens/premium_screen.dart';
 
 class AppRouter {
   static Route<dynamic>? generateRoute(RouteSettings settings) {
@@ -26,25 +23,6 @@ class AppRouter {
       case '/splash':
         return MaterialPageRoute(builder: (_) => const SplashScreen());
 
-      case '/settings':
-        return MaterialPageRoute(
-          builder: (_) => const SettingsScreen(),
-        );
-
-      case '/legal-terms':
-        return MaterialPageRoute(
-          builder: (_) => const LegalTermsScreen(),
-        );
-
-      case '/privacy-policy':
-        return MaterialPageRoute(
-          builder: (_) => const PrivacyPolicyScreen(),
-        );
-
-      case '/imprint':
-        return MaterialPageRoute(
-          builder: (_) => const ImprintScreen(),
-        );
       case '/onboarding':
         return MaterialPageRoute(builder: (_) => const OnboardingScreen());
 
@@ -52,7 +30,6 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const RoleSelectionScreen());
 
       case '/phone-auth':
-        // Rolle wird beim Aufruf mitgegeben, Default = 'woman'
         final role = settings.arguments as String? ?? 'woman';
         return MaterialPageRoute(
           builder: (_) => PhoneAuthScreen(role: role),
@@ -92,8 +69,8 @@ class AppRouter {
 
       case '/safety-timer':
         String? inviteId;
-        if (settings.arguments is Map<String, dynamic>) {
-          final args = settings.arguments as Map<String, dynamic>;
+        if (settings.arguments is Map) {
+          final args = settings.arguments as Map;
           inviteId = args['inviteId'] as String?;
         } else if (settings.arguments is String) {
           inviteId = settings.arguments as String;
@@ -102,7 +79,6 @@ class AppRouter {
           builder: (_) => SafetyTimerScreen(inviteId: inviteId),
         );
 
-      // explizite Variante ohne Invite-Verknüpfung (falls du sie mal brauchst)
       case '/safety-timer-plain':
         return MaterialPageRoute(builder: (_) => const SafetyTimerScreen());
 
@@ -117,13 +93,9 @@ class AppRouter {
           builder: (_) => const AlarmHistoryScreen(),
         );
 
-      // Host-Ansicht für Einladungen (Liste + Codes)
       case '/invitation':
-        return MaterialPageRoute(
-          builder: (_) => const InvitationScreen(),
-        );
+        return MaterialPageRoute(builder: (_) => const InvitationScreen());
 
-      // Demo: „Als Gast testen“ – erwartet eine String-InviteId
       case '/invite-guest':
         final inviteId = settings.arguments as String;
         return MaterialPageRoute(
@@ -142,13 +114,15 @@ class AppRouter {
           builder: (_) => IdVerificationScreen(inviteId: inviteId),
         );
 
-      // Fallback für unbekannte Routen
+      case '/premium':
+        return MaterialPageRoute(
+          builder: (_) => const PremiumScreen(),
+        );
+
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
-            body: Center(
-              child: Text('404 – Route nicht gefunden'),
-            ),
+            body: Center(child: Text('404 – Route nicht gefunden')),
           ),
         );
     }
